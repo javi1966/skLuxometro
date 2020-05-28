@@ -1,0 +1,146 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_TSL2561_U.h>
+#include <U8glib.h>
+
+
+//Definicoes do display Oled
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
+//Definicoes do sensor TSL2561
+Adafruit_TSL2561_Unified tsl=Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT,12345);
+int valor = 0;
+String str;
+int tamanho;
+
+//***************************************************************************************************
+void draw()
+{
+  //Comandos graficos para o display devem ser colocados aqui
+  u8g.drawRFrame(0, 16, 128, 48, 4);
+  u8g.drawRFrame(0, 0, 128, 16, 4);
+  u8g.setFont(u8g_font_8x13B);
+  u8g.setColorIndex(0);
+  u8g.setColorIndex(1);
+  u8g.drawStr( 30, 13, "Lux Meter");
+  u8g.setFont(u8g_font_fur25);
+  str = String(valor);
+  tamanho = str.length();
+  u8g.setPrintPos(64-(tamanho*10), 53);
+  u8g.print(valor);
+}
+
+//*******************************************************************************************************
+void displaySensorDetails(void)
+{
+  //Informacoes basicas do sensor TSL2561
+  sensor_t sensor;
+  tsl.getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.print  ("Sensor:     "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver: "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:  "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:  "); Serial.print(sensor.max_value);
+  Serial.println(" lux");
+  Serial.print  ("Min Value:  "); Serial.print(sensor.min_value); 
+  Serial.println(" lux");
+  Serial.print  ("Resolution: "); Serial.print(sensor.resolution); 
+  Serial.println(" lux");
+  Serial.println("----------------------------------");
+  Serial.println("");
+  delay(500);
+
+ 
+}
+/**************************************************************************/
+/*
+    Configures the gain and integration time for the TSL2561
+*/
+/**************************************************************************/
+void configureSensor(void)
+{
+  /* You can also manually set the gain or enable auto-gain support */
+  /* No gain. use in bright light to avoid sensor saturation */
+  // tsl.setGain(TSL2561_GAIN_1X); 
+  /* 16x gain. use in low light to boost sensitivity */
+  // tsl.setGain(TSL2561_GAIN_16X); 
+  /* Auto-gain. switches automatically between 1x and 16x */
+  tsl.enableAutoRange(true);         
+  /* Changing the integration time gives you better
+      sensor resolution (402ms = 16-bit data) */
+  /* fast but low resolution */
+  tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);     
+  /* medium resolution and speed */
+  // tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_101MS); 
+  /* 16-bit data but slowest conversions */
+  // tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS); 
+  /* Update these values depending on what you've set above! */
+  Serial.println("------------------------------------");
+  Serial.print  ("Gain:         "); Serial.println("Auto");
+  Serial.print  ("Timing:       "); Serial.println("13 ms");
+  Serial.println("------------------------------------");
+}
+void setup(void)
+{
+  Serial.begin(9600);
+  Serial.println("Light Sensor Test"); Serial.println("");
+  //Inicializa o sensor TSL
+  if (!tsl.begin())
+  {
+    Serial.print("TSL2561 nao detectado,verifique a conexao e o endereco I2C");
+    while (1);
+  }
+  //Exibe as informacoes basicas do sensor TSL
+  displaySensorDetails();
+  //Configura o sensor TSL
+  configureSensor();
+  Serial.println("");
+  if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
+    u8g.setColorIndex(255);     // white
+  }
+  else if ( u8g.getMode() == U8G_MODE_GRAY2BIT ) {
+    u8g.setColorIndex(3);         // max intensity
+  }
+  else if ( u8g.getMode() == U8G_MODE_BW ) {
+    u8g.setColorIndex(1);         // pixel on
+  }
+  else if ( u8g.getMode() == U8G_MODE_HICOLOR ) {
+    u8g.setHiColorByRGB(255, 255, 255);
+  }
+}
+
+//*********************************************************************************************************
+
+void Calcula_Lux()
+{
+  sensors_event_t event;
+  tsl.getEvent(&event);
+  //Mostra os resultados no serial monitor
+  //Intensidade da Luz medida em Lux
+  if (event.light)
+  {
+    valor = event.light;
+    Serial.print(event.light); Serial.println(" lux");
+  }
+  else
+  {
+    Serial.println("Sensor overload");
+  }
+  delay(250);
+}
+
+//******************************************************************************************************************
+
+void loop(void)
+{
+  Calcula_Lux();
+  //Chama a rotina de desenho na tela
+  u8g.firstPage();
+  do
+  {
+    draw();
+  }
+  while ( u8g.nextPage() );
+  delay(150);
+}
+
+//**************************************************************************************************************************
